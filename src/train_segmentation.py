@@ -8,6 +8,7 @@ import torch.utils.data
 import torchvision
 from torch import nn
 from torchvision.transforms import functional as F, InterpolationMode
+import segmentation
 
 import general_utils
 import wandb
@@ -26,6 +27,7 @@ def get_dataset(dir_path, name, image_set, val_size, transform):
         "voc":     (dir_path, torchvision.datasets.VOCSegmentation, 21),
         "voc_aug": (dir_path, sbd, 21),
         "coco":    (dir_path, get_coco, 21),
+        "cityscapes": (dir_path, segmentation.cityscapes.CityScapes)
     }
     p, ds_fn, num_classes = paths[name]
     
@@ -71,7 +73,7 @@ def evaluate(model, data_loader, device, num_classes, amp):
         for image, target in metric_logger.log_every(data_loader, 100, header):
             image, target = image.to(device), target.to(device)
             
-            with torch.cuda.amp.autocast(enabled=amp):
+            with torch.amp.autocast(device = 'cuda', enabled=amp):
                 output = model(image)
                 output = output["out"]
             
@@ -93,7 +95,7 @@ def train_one_epoch(config, model, criterion, optimizer, data_loader, lr_schedul
     
     for image, target in metric_logger.log_every(data_loader, print_freq, header):
         image, target = image.to(device), target.to(device)
-        with torch.cuda.amp.autocast(enabled=scaler is not None):
+        with torch.amp.autocast(device='cuda', enabled=scaler is not None):
             output = model(image)
             loss = criterion(output, target)
             loss = loss / iters_to_accumulate
@@ -194,7 +196,7 @@ def main(config):
     optimizer = MaskedSGD(params_to_optimize, [], lr=config.lr, momentum=config.momentum,
                           weight_decay=config.weight_decay)
     
-    scaler = torch.cuda.amp.GradScaler() if config.amp else None
+    scaler = torch.amp.GradScaler(device='cuda') if config.amp else None
     
     iters_per_epoch = len(data_loader)
     main_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(

@@ -63,13 +63,13 @@ def main(rank, config):
         train_loader, valid_loader, test_loader = get_data(config)
     
     # Initialize amp
-    scaler = torch.cuda.amp.GradScaler(enabled=(config.device == "cuda" and config.amp))
+    scaler = torch.amp.GradScaler(device='cuda', enabled=(config.device == "cuda" and config.amp))
     
     # Init wandb
     if rank <= 0:
         print("Initialize wandb run")
         wandb.init(project=config.project_name, config=config)
-        os.makedirs(os.path.join("/scratch", "checkpoints", wandb.run.id))
+        os.makedirs(os.path.join("/home/andrea/Documenti/results/neq", "checkpoints", wandb.run.id))
     
     # Init dictionaries
     hooks = {}
@@ -220,7 +220,7 @@ def main(rank, config):
         if config.amp:
             checkpoint["scaler"] = scaler.state_dict()
         
-        torch.save(checkpoint, os.path.join("/scratch", "checkpoints", wandb.run.id, "checkpoint.pt"))
+        torch.save(checkpoint, os.path.join("/home/andrea/Documenti/results/neq", "checkpoints", wandb.run.id, "checkpoint.pt"))
         del checkpoint
         
         # Scheduler step
